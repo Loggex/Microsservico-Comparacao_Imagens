@@ -1,16 +1,24 @@
 # uvicorn app.main:app --reload
 # https://pt.linkedin.com/pulse/python-microservice-alex-jos%C3%A9-silva-msc
 
-from ast import Return
-from PIL import Image
-from distutils.command.upload import upload
+import base64
 from fastapi import FastAPI, File, Form, UploadFile
+from matplotlib.font_manager import json_dump
+import tensorflow as tf
+import tensorflow_hub as hub
+from PIL import Image
 import numpy as np
-import cv2
-from matplotlib import pyplot as plt
-
+from scipy.spatial import distance
+import shutil
+from pathlib import Path
+import sys
+import os
+import json
 
 app = FastAPI()
+
+UPLOAD_FOLDER = '/images'
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg'])
 
 
 @app.get("/")
@@ -20,40 +28,65 @@ async def index():
 
 @app.post("/comparar/")
 async def compararImagens(imagemBase: UploadFile = File(...), imagemNova: UploadFile = File(...)):
+    model_url = "https://tfhub.dev/tensorflow/efficientnet/lite0/feature-vector/2"
 
-    # img1 = cv2.imdecode(np.fromstring(imagemBase.read(), np.uint8), cv2.IMREAD_UNCHANGED)
-    # img2 = cv2.imdecode(np.fromstring(imagemNova.read(), np.uint8), cv2.IMREAD_UNCHANGED)
+    IMAGE_SHAPE = (224, 224)
 
-    img1 = cv2.imread(Image.open(imagemBase))  # queryImage
-    img2 = cv2.imread(Image.open(imagemNova))  # trainImage
+    layer = hub.KerasLayer(model_url)
+    model = tf.keras.Sequential([layer])
 
-    orb = cv2.ORB_create()
+    def extract(file):
+        file = Image.open(file).convert('L').resize(IMAGE_SHAPE)
+        # display(file)
 
-    kp1, des1 = orb.detectAndCompute(img1, None)
-    kp2, des2 = orb.detectAndCompute(img2, None)
+        file = np.stack((file,)*3, axis=-1)
 
-    FLANN_INDEX_KDTREE = 0
-    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-    search_params = dict(checks=50)   # or pass empty dictionary
+        file = np.array(file)/255.0
 
-    flann = cv2.FlannBasedMatcher(index_params, search_params)
+        embedding = model.predict(file[np.newaxis, ...])
+        # print(embedding)
+        vgg16_feature_np = np.array(embedding)
+        flattended_feature = vgg16_feature_np.flatten()
 
-    des1 = np.float32(des1)
-    des2 = np.float32(des2)
+        # print(len(flattended_feature))
+        print(flattended_feature)
+        # print('-----------')
+        return flattended_feature
 
-    matches = flann.knnMatch(des1, des2, k=2)
+    # path1: Path = Path("images/imagemBase.jpg")
+    # path2: Path = Path("images/imagemNova.jpg")
 
-    matchesMask = [[0, 0] for i in range(len(matches))]
+    # try:
+    #     with path1.open("wb") as buffer:
+    #         shutil.copyfileobj(imagemBase.file, buffer)
+    # finally:
+    #     imagemBase.file.close()
 
-    good_points = []
+    # try:
+    #     with path2.open("wb") as buffer:
+    #         shutil.copyfileobj(imagemNova.file, buffer)
+    # finally:
+    #     imagemNova.file.close()
 
-    threshold = 0.7
+    # contents1 = await imagemBase.read()
+    # with open(imagemBase.filename, 'wb') as a:
+    #     a.write(contents1)
 
-    for i, (m, n) in enumerate(matches):
-        if m.distance < threshold*n.distance:
-            matchesMask[i] = [1, 0]
-            good_points.append(m)
+    # contents2 = await imagemNova.read()
+    # with open(imagemNova.filename, 'wb') as b:
+    #     b.write(contents2)
 
-    percentage = 100 / 500
+    with open(f'{imagemBase.filename}', 'wb') as buffer:
+        shutil.copyfileobj(imagemBase.file, buffer)
 
-    return{"Resultado": str(len(good_points) * percentage) + '% de semelhança'}
+    with open(f'{imagemNova.filename}', 'wb') as buffer:
+        shutil.copyfileobj(imagemNova.file, buffer)
+
+    scriptDir = os.path.dirname(__file__)
+    img1 = extract(os.path.join(scriptDir, f'../{imagemBase.filename}'))
+    img2 = extract(os.path.join(scriptDir, f'../{imagemNova.filename}'))
+
+    metric = 'cosine'
+
+    dc = distance.cdist([img1], [img2], metric)[0]
+    return json.dumps(dc)
