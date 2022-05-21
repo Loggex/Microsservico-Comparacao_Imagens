@@ -53,29 +53,6 @@ async def compararImagens(imagemBase: UploadFile = File(...), imagemNova: Upload
         # print('-----------')
         return flattended_feature
 
-    # path1: Path = Path("images/imagemBase.jpg")
-    # path2: Path = Path("images/imagemNova.jpg")
-
-    # try:
-    #     with path1.open("wb") as buffer:
-    #         shutil.copyfileobj(imagemBase.file, buffer)
-    # finally:
-    #     imagemBase.file.close()
-
-    # try:
-    #     with path2.open("wb") as buffer:
-    #         shutil.copyfileobj(imagemNova.file, buffer)
-    # finally:
-    #     imagemNova.file.close()
-
-    # contents1 = await imagemBase.read()
-    # with open(imagemBase.filename, 'wb') as a:
-    #     a.write(contents1)
-
-    # contents2 = await imagemNova.read()
-    # with open(imagemNova.filename, 'wb') as b:
-    #     b.write(contents2)
-
     with open(f'{imagemBase.filename}', 'wb') as buffer:
         shutil.copyfileobj(imagemBase.file, buffer)
 
@@ -89,4 +66,9 @@ async def compararImagens(imagemBase: UploadFile = File(...), imagemNova: Upload
     metric = 'cosine'
 
     dc = distance.cdist([img1], [img2], metric)[0]
-    return json.dumps(dc)
+
+    if os.path.exists(os.path.join(scriptDir, f'../{imagemBase.filename}')) & os.path.exists(os.path.join(scriptDir, f'../{imagemNova.filename}')):
+        os.remove(os.path.join(scriptDir, f'../{imagemBase.filename}'))
+        os.remove(os.path.join(scriptDir, f'../{imagemNova.filename}'))
+
+    return format(dc)
