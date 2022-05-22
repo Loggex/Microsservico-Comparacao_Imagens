@@ -1,7 +1,6 @@
 # uvicorn app.main:app --reload
 # https://pt.linkedin.com/pulse/python-microservice-alex-jos%C3%A9-silva-msc
 
-import base64
 from fastapi import FastAPI, File, Form, UploadFile
 from matplotlib.font_manager import json_dump
 import tensorflow as tf
@@ -11,9 +10,7 @@ import numpy as np
 from scipy.spatial import distance
 import shutil
 from pathlib import Path
-import sys
 import os
-import json
 
 app = FastAPI()
 
@@ -26,7 +23,7 @@ async def index():
     return {"Hello": "Woliugiugyiugld"}
 
 
-@app.post("/comparar/")
+@app.post("/comparar")
 async def compararImagens(imagemBase: UploadFile = File(...), imagemNova: UploadFile = File(...)):
     model_url = "https://tfhub.dev/tensorflow/efficientnet/lite0/feature-vector/2"
 
