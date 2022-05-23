@@ -1,4 +1,4 @@
-# uvicorn app.main:app --reload
+# uvicorn src.main:app --reload
 # https://pt.linkedin.com/pulse/python-microservice-alex-jos%C3%A9-silva-msc
 
 from fastapi import FastAPI, File, Form, UploadFile
